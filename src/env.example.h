@@ -8,7 +8,7 @@
 #define SDA_PIN 21
 #define SCL_PIN 22
 
-#define MQ135_PIN 34 // MQ135 connected here
+#define MQ135_PIN 34
 
 #define BUTTON_PIN_MODE 13
 #define BUTTON_PIN_RIGHT 14
@@ -29,5 +29,5 @@ const string preTopicStr = string("meteo/") + device_name;
 const char *preTopic = preTopicStr.c_str();
 
 const char *ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 3600; // e.g. UTC+1 → 3600 seconds
+const long gmtOffset_sec = 3600;
 const int daylightOffset_sec = 3600;

@@ -13,13 +13,12 @@ class ChartHandler
 public:
     ChartHandler()
     {
-        // Reserve vector capacity for display width points to avoid reallocations
         tempHistory.reserve(areaWidth);
         humiHistory.reserve(areaWidth);
         pressureHistory.reserve(areaWidth);
         aqHistory.reserve(areaWidth);
 
-        tempHistoryRecent.reserve(10); // recent buffers can be smaller
+        tempHistoryRecent.reserve(10);
         humiHistoryRecent.reserve(10);
         pressureHistoryRecent.reserve(10);
         aqHistoryRecent.reserve(10);
@@ -182,16 +181,14 @@ private:
     template <typename T>
     void addAverageToHistory(vector<T> &recent, vector<T> &history)
     {
-        // Compute average of recent samples
         double sum = 0;
         for (const auto &v : recent)
             sum += v;
 
         T avg = static_cast<T>(sum / recent.size());
 
-        // Add to history and maintain max size
         if (history.size() >= areaWidth)
-            history.erase(history.begin()); // remove oldest
+            history.erase(history.begin());
 
         history.push_back(avg);
         recent.clear();
