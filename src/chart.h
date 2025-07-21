@@ -1,0 +1,214 @@
+#pragma once
+#include <vector>
+#include <string>
+#include "devices.h"
+#include "sensors.h"
+
+#include "saveVector.h"
+
+using namespace std;
+
+class ChartHandler
+{
+public:
+    ChartHandler()
+    {
+        // Reserve vector capacity for display width points to avoid reallocations
+        tempHistory.reserve(areaWidth);
+        humiHistory.reserve(areaWidth);
+        pressureHistory.reserve(areaWidth);
+        aqHistory.reserve(areaWidth);
+
+        tempHistoryRecent.reserve(10); // recent buffers can be smaller
+        humiHistoryRecent.reserve(10);
+        pressureHistoryRecent.reserve(10);
+        aqHistoryRecent.reserve(10);
+    }
+
+    void displayChart(int id, Adafruit_SSD1306 &display)
+    {
+        if (!(millis() > lastChartRefresh + updateDelay || lastID != id))
+        {
+            return;
+        }
+        lastChartRefresh = millis();
+        lastID = id;
+
+        switch (id)
+        {
+        case 0:
+            showChart(tempHistory.empty() ? tempHistoryRecent : tempHistory, "Temperature", "C", display);
+            break;
+        case 1:
+            showChart(humiHistory.empty() ? humiHistoryRecent : humiHistory, "Humidity", "%", display);
+            break;
+        case 2:
+            showChart(pressureHistory.empty() ? pressureHistoryRecent : pressureHistory, "Pressure", "hPa", display);
+            break;
+        case 3:
+            showChart(aqHistory.empty() ? aqHistoryRecent : aqHistory, "Air Quality", "Raw", display);
+            break;
+        }
+    }
+
+    void refreshData()
+    {
+        if (millis() > lastRecent + updateDelay)
+        {
+            tempHistoryRecent.push_back(getTemperature());
+            humiHistoryRecent.push_back(getHumidity());
+            pressureHistoryRecent.push_back(getPressure());
+            aqHistoryRecent.push_back(getAirQuality());
+            lastRecent = millis();
+        }
+        if (tempHistoryRecent.size() * updateDelay > timeBetweenPoints)
+        {
+            addAverageToHistory(tempHistoryRecent, tempHistory);
+            addAverageToHistory(humiHistoryRecent, humiHistory);
+            addAverageToHistory(pressureHistoryRecent, pressureHistory);
+            addAverageToHistory(aqHistoryRecent, aqHistory);
+            save();
+        }
+    }
+
+    void load()
+    {
+        try
+        {
+            tempHistory = loadVector<float>("tempHistory");
+            humiHistory = loadVector<float>("humiHistory");
+            pressureHistory = loadVector<float>("pressureHistory");
+            aqHistory = loadVector<int>("aqHistory");
+        }
+        catch (const std::exception &e)
+        {
+            Serial.println(e.what());
+        }
+    }
+
+private:
+    vector<float> tempHistory;
+    vector<float> humiHistory;
+    vector<float> pressureHistory;
+    vector<int> aqHistory;
+
+    vector<float> tempHistoryRecent;
+    vector<float> humiHistoryRecent;
+    vector<float> pressureHistoryRecent;
+    vector<int> aqHistoryRecent;
+
+    unsigned long lastRecent = 0;
+
+    const unsigned long updateDelay = 2000;
+
+    const int areaHeight = SCREEN_HEIGHT - 18;
+    const int areaWidth = SCREEN_WIDTH - 1;
+    const unsigned long timeBetweenPoints = (10 * 60 * 60 * 1000) / areaWidth;
+
+    int lastID = -1;
+    unsigned long lastChartRefresh = 0;
+
+    template <typename T>
+    void showChart(vector<T> history, string name, string unit, Adafruit_SSD1306 &display)
+    {
+        if (history.empty())
+        {
+            display.clearDisplay();
+            display.setCursor(0, 0);
+            display.println("History empty!");
+            display.display();
+            return;
+        }
+
+        T min = history[0];
+        T max = history[0];
+
+        for (size_t i = 1; i < history.size(); ++i)
+        {
+            if (history[i] < min)
+            {
+                min = history[i];
+            }
+            if (history[i] > max)
+            {
+                max = history[i];
+            }
+        }
+
+        float minF = min;
+        float maxF = max;
+        if (maxF == minF)
+            maxF += 0.01f;
+        display.clearDisplay();
+        display.setCursor(0, 48);
+        display.print(name.c_str());
+        display.print(" Unit: ");
+        display.println(unit.c_str());
+        display.print("Min: ");
+        display.print(min, 1);
+        display.print(" Max: ");
+        display.print(max, 1);
+        display.drawLine(0, 0, 0, areaHeight + 1, SSD1306_WHITE);
+        display.drawLine(0, areaHeight + 1, areaWidth, areaHeight + 1, SSD1306_WHITE);
+
+        if (history.size() > 1)
+        {
+            float step = SCREEN_WIDTH / float(history.size() - 1);
+
+            for (size_t i = 1; i < history.size(); i++)
+            {
+                const float valuePre = history[i - 1];
+                const float valueThis = history[i];
+
+                const float scaledPreRatio = (valuePre - minF) / (maxF - minF);
+                const float scaledThisRatio = (valueThis - minF) / (maxF - minF);
+
+                const int xp = (i - 1) * step + 1;
+                const int yp = areaHeight - areaHeight * scaledPreRatio;
+                const int xn = (i == history.size() - 1) ? areaWidth : i * step + 1;
+                const int yn = areaHeight - areaHeight * scaledThisRatio;
+
+                display.drawLine(xp, yp, xn, yn, SSD1306_WHITE);
+            }
+        }
+        else
+        {
+            display.drawLine(0, areaHeight / 2, areaWidth, areaHeight / 2, SSD1306_WHITE);
+        }
+
+        display.display();
+    }
+
+    template <typename T>
+    void addAverageToHistory(vector<T> &recent, vector<T> &history)
+    {
+        // Compute average of recent samples
+        double sum = 0;
+        for (const auto &v : recent)
+            sum += v;
+
+        T avg = static_cast<T>(sum / recent.size());
+
+        // Add to history and maintain max size
+        if (history.size() >= areaWidth)
+            history.erase(history.begin()); // remove oldest
+
+        history.push_back(avg);
+        recent.clear();
+    }
+
+    void save()
+    {
+        try
+        {
+            saveVector("tempHistory", tempHistory);
+            saveVector("humiHistory", humiHistory);
+            saveVector("pressureHistory", pressureHistory);
+            saveVector("aqHistory", aqHistory);
+        }
+        catch (const std::exception &e)
+        {
+            Serial.println(e.what());
+        }
+    }
+};
