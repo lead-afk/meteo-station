@@ -101,8 +101,8 @@ void publishToMQTT()
     client.publish((preTopicStr + "/rssi").c_str(), RSSIStr.c_str());
     client.publish((preTopicStr + "/ip").c_str(), IPStr.c_str());
 
-    Serial.print("MQTT status: ");
-    Serial.println(client.state());
+//    Serial.print("MQTT status: ");
+//    Serial.println(client.state());
 }
 
 unsigned long lastMQTTPublish = 0;
@@ -205,6 +205,43 @@ void setup()
     chartHandler.load();
 }
 
+template <typename T>
+void printVectorDebug(const vector<T> &vec, const char *name)
+{
+    Serial.print(name);
+    Serial.print(": size=");
+    Serial.print(vec.size());
+    if (vec.empty())
+    {
+        Serial.println(" (empty)");
+        return;
+    }
+    Serial.print(", values=[");
+    size_t count = min(vec.size(), size_t(5)); // print up to first 5 elements
+    for (size_t i = 0; i < count; i++)
+    {
+        Serial.print(vec[i]);
+        if (i < count - 1)
+            Serial.print(", ");
+    }
+    if (vec.size() > 5)
+        Serial.print(", ...");
+    Serial.println("]");
+}
+
+void debug()
+{
+    vector<float> tempHistory = loadVector<float>("tmp");
+    vector<float> humiHistory = loadVector<float>("hum");
+    vector<float> pressureHistory = loadVector<float>("pre");
+    vector<int> aqHistory = loadVector<int>("aqh");
+
+    printVectorDebug(tempHistory, "tempHistory");
+    printVectorDebug(humiHistory, "humiHistory");
+    printVectorDebug(pressureHistory, "pressureHistory");
+    printVectorDebug(aqHistory, "aqHistory");
+}
+
 int currentMode = 0;
 bool modeFlag = true;
 bool leftFlag = true;
@@ -241,13 +278,13 @@ void loop()
     }
     if (currentMode == 6)
     {
-        if (is_pressed(BUTTON_PIN_LEFT) && leftFlag && millis() > lastLeft + 100)
+        if (is_pressed(BUTTON_PIN_LEFT) && leftFlag && millis() > lastLeft + 50)
         {
             snakeGame.setSnakeLeftRegistered(true);
             leftFlag = false;
             lastLeft = millis();
         }
-        if (is_pressed(BUTTON_PIN_RIGHT) && rightFlag && millis() > lastRight + 100)
+        if (is_pressed(BUTTON_PIN_RIGHT) && rightFlag && millis() > lastRight + 50)
         {
             snakeGame.setSnakeRightRegistered(true);
             rightFlag = false;
@@ -298,13 +335,16 @@ void loop()
     case 6:
         snakeGame.game(display);
         break;
+//    case 7:
+//        debug();
+//       break;
     }
 
     if (currentMode != lastMode)
     {
         Serial.print("Current mode: ");
         Serial.println(currentMode);
-        Serial.println(WiFi.localIP());
+//        Serial.println(WiFi.localIP());
         lastMode = currentMode;
     }
 }

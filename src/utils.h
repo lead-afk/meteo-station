@@ -2,6 +2,7 @@
 #include <utility>
 #include <Wire.h>
 #include <time.h>
+#include <PubSubClient.h>
 
 template <typename T1, typename T2>
 std::pair<T1, T2> operator+(const std::pair<T1, T2> &a, const std::pair<T1, T2> &b)

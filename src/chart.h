@@ -3,8 +3,14 @@
 #include <string>
 #include "devices.h"
 #include "sensors.h"
-
+#include "utils.h"
+#include <PubSubClient.h>
 #include "saveVector.h"
+
+void postError(string error)
+{
+    client.publish((preTopicStr + "/error").c_str(), (error).c_str());
+}
 
 using namespace std;
 
@@ -74,14 +80,15 @@ public:
     {
         try
         {
-            tempHistory = loadVector<float>("tempHistory");
-            humiHistory = loadVector<float>("humiHistory");
-            pressureHistory = loadVector<float>("pressureHistory");
-            aqHistory = loadVector<int>("aqHistory");
+            tempHistory = loadVector<float>("tmp");
+            humiHistory = loadVector<float>("hum");
+            pressureHistory = loadVector<float>("pre");
+            aqHistory = loadVector<int>("aqh");
         }
         catch (const std::exception &e)
         {
             Serial.println(e.what());
+            postError(e.what());
         }
     }
 
@@ -198,14 +205,15 @@ private:
     {
         try
         {
-            saveVector("tempHistory", tempHistory);
-            saveVector("humiHistory", humiHistory);
-            saveVector("pressureHistory", pressureHistory);
-            saveVector("aqHistory", aqHistory);
+            saveVector("tmp", tempHistory);
+            saveVector("hum", humiHistory);
+            saveVector("pre", pressureHistory);
+            saveVector("aqh", aqHistory);
         }
         catch (const std::exception &e)
         {
             Serial.println(e.what());
+            postError(e.what());
         }
     }
 };
