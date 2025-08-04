@@ -42,17 +42,53 @@ public:
         switch (id)
         {
         case 0:
-            showChart(tempHistory.empty() ? tempHistoryRecent : tempHistory, "Temperature", "C", display);
+        {
+            auto data = tempHistory.empty() ? tempHistoryRecent : tempHistory;
+            if (!data.empty())
+                data.back() = getTemperature();
+            showChart(data, "Temperature", "C", display);
             break;
+        }
         case 1:
-            showChart(humiHistory.empty() ? humiHistoryRecent : humiHistory, "Humidity", "%", display);
+        {
+            auto data = humiHistory.empty() ? humiHistoryRecent : humiHistory;
+            if (!data.empty())
+                data.back() = getHumidity();
+            showChart(data, "Humidity", "%", display);
             break;
+        }
         case 2:
-            showChart(pressureHistory.empty() ? pressureHistoryRecent : pressureHistory, "Pressure", "hPa", display);
+        {
+            auto data = pressureHistory.empty() ? pressureHistoryRecent : pressureHistory;
+            if (!data.empty())
+                data.back() = getPressure();
+            showChart(data, "Pressure", "hPa", display);
             break;
+        }
         case 3:
-            showChart(aqHistory.empty() ? aqHistoryRecent : aqHistory, "Air Quality", "Raw", display);
+        {
+            auto data = aqHistory.empty() ? aqHistoryRecent : aqHistory;
+            if (!data.empty())
+                data.back() = getIAQ();
+            showChart(data, "Air Quality", "Raw", display);
             break;
+        }
+        case 4:
+        {
+            auto data = co2History.empty() ? co2HistoryRecent : co2History;
+            if (!data.empty())
+                data.back() = getIAQ();
+            showChart(data, "CO2", "ppm", display);
+            break;
+        }
+        case 5:
+        {
+            auto data = vocHistory.empty() ? vocHistoryRecent : vocHistory;
+            if (!data.empty())
+                data.back() = getIAQ();
+            showChart(data, "VOC", "ppm", display);
+            break;
+        }
         }
     }
 
@@ -63,7 +99,10 @@ public:
             tempHistoryRecent.push_back(getTemperature());
             humiHistoryRecent.push_back(getHumidity());
             pressureHistoryRecent.push_back(getPressure());
-            aqHistoryRecent.push_back(getAirQuality());
+            aqHistoryRecent.push_back(getIAQ());
+            co2HistoryRecent.push_back(getCO2Equivalent());
+            vocHistoryRecent.push_back(getVOC());
+
             lastRecent = millis();
         }
         if (tempHistoryRecent.size() * updateDelay > timeBetweenPoints)
@@ -72,6 +111,9 @@ public:
             addAverageToHistory(humiHistoryRecent, humiHistory);
             addAverageToHistory(pressureHistoryRecent, pressureHistory);
             addAverageToHistory(aqHistoryRecent, aqHistory);
+            addAverageToHistory(co2HistoryRecent, co2History);
+            addAverageToHistory(vocHistoryRecent, vocHistory);
+
             save();
         }
     }
@@ -84,6 +126,8 @@ public:
             humiHistory = loadVector<float>("hum");
             pressureHistory = loadVector<float>("pre");
             aqHistory = loadVector<int>("aqh");
+            co2History = loadVector<float>("cot");
+            vocHistory = loadVector<float>("voc");
         }
         catch (const std::exception &e)
         {
@@ -97,11 +141,15 @@ private:
     vector<float> humiHistory;
     vector<float> pressureHistory;
     vector<int> aqHistory;
+    vector<float> co2History;
+    vector<float> vocHistory;
 
     vector<float> tempHistoryRecent;
     vector<float> humiHistoryRecent;
     vector<float> pressureHistoryRecent;
     vector<int> aqHistoryRecent;
+    vector<float> co2HistoryRecent;
+    vector<float> vocHistoryRecent;
 
     unsigned long lastRecent = 0;
 
@@ -148,7 +196,9 @@ private:
         display.clearDisplay();
         display.setCursor(0, 48);
         display.print(name.c_str());
-        display.print(" Unit: ");
+        display.print(": ");
+        display.print(history.back());
+        display.print(" ");
         display.println(unit.c_str());
         display.print("Min: ");
         display.print(min, 1);
@@ -209,6 +259,8 @@ private:
             saveVector("hum", humiHistory);
             saveVector("pre", pressureHistory);
             saveVector("aqh", aqHistory);
+            saveVector("cot", co2History);
+            saveVector("voc", vocHistory);
         }
         catch (const std::exception &e)
         {
