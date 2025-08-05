@@ -43,3 +43,45 @@ std::pair<String, String> getCurrentDateTime()
 
     return {String(dateStr), String(timeStr)};
 }
+
+void scanI2C(uint8_t sda = 21, uint8_t scl = 22)
+{
+    Wire.begin(sda, scl);
+    Serial.println("Scanning I2C bus...");
+
+    for (uint8_t address = 1; address < 127; address++)
+    {
+        Wire.beginTransmission(address);
+        if (Wire.endTransmission() == 0)
+        {
+            Serial.print("Found I2C device at 0x");
+            Serial.println(address, HEX);
+        }
+    }
+
+    Serial.println("Scan complete.");
+}
+
+template <typename T>
+void printVectorDebug(const vector<T> &vec, const char *name)
+{
+    Serial.print(name);
+    Serial.print(": size=");
+    Serial.print(vec.size());
+    if (vec.empty())
+    {
+        Serial.println(" (empty)");
+        return;
+    }
+    Serial.print(", values=[");
+    size_t count = min(vec.size(), size_t(5)); // print up to first 5 elements
+    for (size_t i = 0; i < count; i++)
+    {
+        Serial.print(vec[i]);
+        if (i < count - 1)
+            Serial.print(", ");
+    }
+    if (vec.size() > 5)
+        Serial.print(", ...");
+    Serial.println("]");
+}
