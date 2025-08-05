@@ -77,7 +77,7 @@ public:
         {
             auto data = co2History.empty() ? co2HistoryRecent : co2History;
             if (!data.empty())
-                data.back() = getIAQ();
+                data.back() = getCO2Equivalent();
             showChart(data, "CO2", "ppm", display);
             break;
         }
@@ -85,7 +85,7 @@ public:
         {
             auto data = vocHistory.empty() ? vocHistoryRecent : vocHistory;
             if (!data.empty())
-                data.back() = getIAQ();
+                data.back() = getVOC();
             showChart(data, "VOC", "ppm", display);
             break;
         }

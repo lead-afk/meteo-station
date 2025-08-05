@@ -171,6 +171,27 @@ void publishToMQTT()
     //    Serial.println(client.state());
 }
 
+bool otaInProgress = false;
+void setupOTA()
+{
+    ArduinoOTA.setHostname(device_name);
+    ArduinoOTA.onStart([]()
+                       {
+    otaInProgress = true;
+    Serial.println("OTA Update Start"); });
+
+    ArduinoOTA.onEnd([]()
+                     {
+    otaInProgress = false;
+    Serial.println("OTA Update End"); });
+
+    ArduinoOTA.onError([](ota_error_t error)
+                       {
+    otaInProgress = false;
+    Serial.printf("OTA Error[%u]\n", error); });
+    ArduinoOTA.begin();
+}
+
 unsigned long lastMQTTPublish = 0;
 ChartHandler chartHandler;
 void setup()
@@ -231,8 +252,7 @@ void setup()
     display.display();
     delay(300);
 
-    ArduinoOTA.setHostname(device_name);
-    ArduinoOTA.begin();
+    setupOTA();
 
     client.setServer(mqtt_server, mqtt_port);
     client.connect(device_name, mqtt_user, mqtt_pass);
@@ -259,6 +279,11 @@ void setup()
         1);
 
     iaqSensor.run();
+    while (getPressure() < 10.0)
+    {
+        iaqSensor.run();
+        delay(50);
+    }
 }
 
 void SerialSetup()
@@ -325,6 +350,12 @@ Snake snakeGame;
 
 void loop()
 {
+    if (otaInProgress)
+    {
+        ArduinoOTA.handle();
+        return;
+    }
+
     ArduinoOTA.handle();
     client.loop();
     chartHandler.refreshData();
@@ -344,7 +375,7 @@ void loop()
             currentMode = 0;
     }
 
-    if (millis() - lastModeChange > 20000 && lastAnimationChange + animationDelay < millis() && currentMode != 6)
+    if (millis() - lastModeChange > 20000 && lastAnimationChange + animationDelay < millis())
     {
         lastAnimationChange = millis();
         animationDelay = (currentMode == 5) ? 10000 : 5000;
