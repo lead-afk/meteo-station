@@ -42,17 +42,37 @@ public:
         switch (id)
         {
         case 0:
-            showChart(tempHistory.empty() ? tempHistoryRecent : tempHistory, "Temperature", "C", display);
+        {
+            auto data = tempHistory.empty() ? tempHistoryRecent : tempHistory;
+            if (!data.empty())
+                data.back() = getTemperature();
+            showChart(data, "Temperature", "C", display);
             break;
+        }
         case 1:
-            showChart(humiHistory.empty() ? humiHistoryRecent : humiHistory, "Humidity", "%", display);
+        {
+            auto data = humiHistory.empty() ? humiHistoryRecent : humiHistory;
+            if (!data.empty())
+                data.back() = getHumidity();
+            showChart(data, "Humidity", "%", display);
             break;
+        }
         case 2:
-            showChart(pressureHistory.empty() ? pressureHistoryRecent : pressureHistory, "Pressure", "hPa", display);
+        {
+            auto data = pressureHistory.empty() ? pressureHistoryRecent : pressureHistory;
+            if (!data.empty())
+                data.back() = getPressure();
+            showChart(data, "Pressure", "hPa", display);
             break;
+        }
         case 3:
-            showChart(aqHistory.empty() ? aqHistoryRecent : aqHistory, "Air Quality", "Raw", display);
+        {
+            auto data = aqHistory.empty() ? aqHistoryRecent : aqHistory;
+            if (!data.empty())
+                data.back() = getAirQuality();
+            showChart(data, "Air Quality", "Raw", display);
             break;
+        }
         }
     }
 
@@ -148,7 +168,9 @@ private:
         display.clearDisplay();
         display.setCursor(0, 48);
         display.print(name.c_str());
-        display.print(" Unit: ");
+        display.print(": ");
+        display.print(history.back());
+        display.print(" ");
         display.println(unit.c_str());
         display.print("Min: ");
         display.print(min, 1);

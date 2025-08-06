@@ -43,3 +43,21 @@ std::pair<String, String> getCurrentDateTime()
 
     return {String(dateStr), String(timeStr)};
 }
+
+void scanI2C(uint8_t sda = 21, uint8_t scl = 22)
+{
+    Wire.begin(sda, scl);
+    Serial.println("Scanning I2C bus...");
+
+    for (uint8_t address = 1; address < 127; address++)
+    {
+        Wire.beginTransmission(address);
+        if (Wire.endTransmission() == 0)
+        {
+            Serial.print("Found I2C device at 0x");
+            Serial.println(address, HEX);
+        }
+    }
+
+    Serial.println("Scan complete.");
+}

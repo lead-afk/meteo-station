@@ -23,86 +23,18 @@ using namespace std;
 #include "snake.h"
 #include "sensors.h"
 #include "chart.h"
+#include "ota.h"
+#include "mqtt.h"
 
-unsigned long lastUpdateIPInfo = 0;
-void ipinfo()
+void SerialSetup()
 {
-    if (!(millis() > lastUpdateIPInfo + 300))
-    {
-        return;
-    }
-    lastUpdateIPInfo = millis();
-
-    display.clearDisplay();
-    display.setCursor(0, 0);
-
-    display.print("IP: ");
-    display.println(WiFi.localIP());
-
-    display.print("GW: ");
-    display.println(WiFi.gatewayIP());
-
-    display.print("DNS: ");
-    display.println(WiFi.dnsIP());
-
-    int32_t rssi = WiFi.RSSI();
-    display.print("RSSI: ");
-    display.println(rssi);
-    display.print("Wifi C: ");
-    display.println(WiFi.status());
-    display.print("MQTT C: ");
-    display.println(client.state());
-
-    display.display();
-}
-
-int failedWifi = 0;
-void publishToMQTT()
-{
-
-    if (WiFi.status() != WL_CONNECTED)
-    {
-        failedWifi++;
-        if (failedWifi > 20)
-        {
-            ESP.restart();
-        }
-
-        WiFi.reconnect();
-    }
-    else
-    {
-        failedWifi = 0;
-    }
-
-    // Read values
-    float temperature = getTemperature();
-    float pressure = getPressure();
-    int airQuality = getAirQuality();
-    float humidity = getHumidity();
-
-    // Prepare payloads
-    String tempStr = String(temperature, 2); // 2 decimal places
-    String pressureStr = String(pressure);
-    String airStr = String(airQuality);
-    String humidityStr = String(humidity);
-    String RSSIStr = String(WiFi.RSSI());
-    String IPStr = WiFi.localIP().toString();
-
-    if (!client.connected())
-    {
-        client.connect(device_name, mqtt_user, mqtt_pass);
-    }
-    // Publish to respective topics
-    client.publish((preTopicStr + "/temp").c_str(), tempStr.c_str());
-    client.publish((preTopicStr + "/pressure").c_str(), pressureStr.c_str());
-    client.publish((preTopicStr + "/aq").c_str(), airStr.c_str());
-    client.publish((preTopicStr + "/humidity").c_str(), humidityStr.c_str());
-    client.publish((preTopicStr + "/rssi").c_str(), RSSIStr.c_str());
-    client.publish((preTopicStr + "/ip").c_str(), IPStr.c_str());
-
-//    Serial.print("MQTT status: ");
-//    Serial.println(client.state());
+    Serial.begin(115200);
+    Serial.println("Booting...");
+    scanI2C();
+    pinMode(BUTTON_PIN_MODE, INPUT_PULLUP);
+    pinMode(BUTTON_PIN_RIGHT, INPUT_PULLUP);
+    pinMode(BUTTON_PIN_LEFT, INPUT_PULLUP);
+    Wire.begin(SDA_PIN, SCL_PIN);
 }
 
 unsigned long lastMQTTPublish = 0;
@@ -110,13 +42,7 @@ ChartHandler chartHandler;
 void setup()
 {
     delay(250);
-    Serial.begin(115200);
-    Serial.println("Booting...");
-    pinMode(BUTTON_PIN_MODE, INPUT_PULLUP);
-    pinMode(BUTTON_PIN_RIGHT, INPUT_PULLUP);
-    pinMode(BUTTON_PIN_LEFT, INPUT_PULLUP);
-
-    Wire.begin(SDA_PIN, SCL_PIN);
+    SerialSetup();
 
     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
     {
@@ -186,10 +112,9 @@ void setup()
     display.display();
     delay(300);
 
-    ArduinoOTA.setHostname(device_name);
-    ArduinoOTA.begin();
+    setupOTA();
 
-    client.setServer(mqtt_server, mqtt_port);
+        client.setServer(mqtt_server, mqtt_port);
     client.connect(device_name, mqtt_user, mqtt_pass);
     client.setKeepAlive(1200);
     publishToMQTT();
@@ -203,43 +128,6 @@ void setup()
     client.publish((preTopicStr + "/lastboot").c_str(), (ctime.first + " " + ctime.second).c_str());
 
     chartHandler.load();
-}
-
-template <typename T>
-void printVectorDebug(const vector<T> &vec, const char *name)
-{
-    Serial.print(name);
-    Serial.print(": size=");
-    Serial.print(vec.size());
-    if (vec.empty())
-    {
-        Serial.println(" (empty)");
-        return;
-    }
-    Serial.print(", values=[");
-    size_t count = min(vec.size(), size_t(5)); // print up to first 5 elements
-    for (size_t i = 0; i < count; i++)
-    {
-        Serial.print(vec[i]);
-        if (i < count - 1)
-            Serial.print(", ");
-    }
-    if (vec.size() > 5)
-        Serial.print(", ...");
-    Serial.println("]");
-}
-
-void debug()
-{
-    vector<float> tempHistory = loadVector<float>("tmp");
-    vector<float> humiHistory = loadVector<float>("hum");
-    vector<float> pressureHistory = loadVector<float>("pre");
-    vector<int> aqHistory = loadVector<int>("aqh");
-
-    printVectorDebug(tempHistory, "tempHistory");
-    printVectorDebug(humiHistory, "humiHistory");
-    printVectorDebug(pressureHistory, "pressureHistory");
-    printVectorDebug(aqHistory, "aqHistory");
 }
 
 int currentMode = 0;
@@ -335,16 +223,12 @@ void loop()
     case 6:
         snakeGame.game(display);
         break;
-//    case 7:
-//        debug();
-//       break;
     }
 
     if (currentMode != lastMode)
     {
         Serial.print("Current mode: ");
         Serial.println(currentMode);
-//        Serial.println(WiFi.localIP());
         lastMode = currentMode;
     }
 }
